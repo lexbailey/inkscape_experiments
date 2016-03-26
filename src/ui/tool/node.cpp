@@ -585,6 +585,9 @@ Node::Node(NodeSharedData const &data, Geom::Point const &initial_pos) :
                            node_colors, data.node_group),
     _front(data, initial_pos, this),
     _back(data, initial_pos, this),
+    _arc_rx(data, initial_pos, this),
+    _arc_ry(data, initial_pos, this),
+    _arc_rotation(data, initial_pos, this),
     _type(NODE_CUSP),
     _handles_shown(false)
 {
@@ -1378,7 +1381,7 @@ Node *Node::nodeToward(Handle *dir)
     if (front() == dir) {
         return _next();
     }
-    if (back() == dir) {
+    if ( (back() == dir) || (arc_rx() == dir) || (arc_ry() == dir) || (arc_rotation() == dir) ) {
         return _prev();
     }
     g_error("Node::nodeToward(): handle is not a child of this node!");
@@ -1402,7 +1405,7 @@ Node *Node::nodeAwayFrom(Handle *h)
     if (front() == h) {
         return _prev();
     }
-    if (back() == h) {
+    if ( (back() == h) || (arc_rx() == h) || (arc_ry() == h) || (arc_rotation() == h) ) {
         return _next();
     }
     g_error("Node::nodeAwayFrom(): handle is not a child of this node!");

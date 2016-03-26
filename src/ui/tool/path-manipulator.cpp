@@ -815,6 +815,9 @@ void PathManipulator::setSegmentType(SegmentType type)
                     break;
                 j->front()->move(*j);
                 k->back()->move(*k);
+                j->arc_rx()->move(*j);
+                j->arc_ry()->move(*j);
+                j->arc_rotation()->move(*j);
                 break;
             case SEGMENT_CUBIC_BEZIER:
                 if (!j->front()->isDegenerate() || !k->back()->isDegenerate())
@@ -822,6 +825,21 @@ void PathManipulator::setSegmentType(SegmentType type)
                 // move both handles to 1/3 of the line
                 j->front()->move(j->position() + (k->position() - j->position()) / 3);
                 k->back()->move(k->position() + (j->position() - k->position()) / 3);
+                j->arc_rx()->move(*j);
+                j->arc_ry()->move(*j);
+                j->arc_rotation()->move(*j);
+                break;
+            case SEGMENT_ELIPTICAL_ARC:
+                if (!(j->front()->isDegenerate() && k->back()->isDegenerate())){
+                    j->front()->move(*j);
+                    k->back()->move(*k);
+                }
+
+                if ((j->arc_rx()->isDegenerate() && j->arc_ry()->isDegenerate() && j->arc_rotation()->isDegenerate())){
+                    j->arc_rx()->move(j->position() + ((k->position() - j->position()) / 2).cw());
+                    j->arc_ry()->move(j->position() + ((k->position() - j->position()) / 2).ccw());
+                    j->arc_rotation()->move(j->position() + (k->position() - j->position()) / 2);
+                }
                 break;
             }
         }

@@ -281,6 +281,7 @@ static gchar const * ui_descr =
         "    <separator />"
         "    <toolitem action='NodeLineAction' />"
         "    <toolitem action='NodeCurveAction' />"
+        "    <toolitem action='NodeArcAction' />"
         "    <separator />"
         "    <toolitem action='ObjectToPath' />"
         "    <toolitem action='StrokeToPath' />"

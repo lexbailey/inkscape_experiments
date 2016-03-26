@@ -195,6 +195,9 @@ public:
     bool isEndNode() const;
     Handle *front() { return &_front; }
     Handle *back()  { return &_back;  }
+    Handle *arc_rx() { return &_arc_rx; }
+    Handle *arc_ry() { return &_arc_ry; }
+    Handle *arc_rotation() { return &_arc_rotation; }
 
     /**
      * Gets the handle that faces the given adjacent node.
@@ -278,6 +281,9 @@ private:
     // as a line segment
     Handle _front; ///< Node handle in the backward direction of the path
     Handle _back; ///< Node handle in the forward direction of the path
+    Handle _arc_rx; ///< Handle for controling the x radius of the elipse (in eliptical arc mode)
+    Handle _arc_ry; ///< Handle for controling the y radius of the elipse (in eliptical arc mode)
+    Handle _arc_rotation; ///< Handle for controling the rotation of the elipse (in eliptical arc mode)
     NodeType _type; ///< Type of node - cusp, smooth...
     bool _handles_shown;
     static ColorSet node_colors;

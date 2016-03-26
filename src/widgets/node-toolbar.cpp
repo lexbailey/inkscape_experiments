@@ -171,6 +171,14 @@ static void sp_node_path_edit_tocurve(void)
     }
 }
 
+static void sp_node_path_edit_toarc(void)
+{
+    NodeTool *nt = get_node_tool();
+    if (nt) {
+        nt->_multipath->setSegmentType(Inkscape::UI::SEGMENT_ELIPTICAL_ARC);
+    }
+}
+
 static void sp_node_path_edit_cusp(void)
 {
     NodeTool *nt = get_node_tool();
@@ -502,6 +510,16 @@ void sp_node_toolbox_prep(SPDesktop *desktop, GtkActionGroup* mainActions, GObje
                                           INKSCAPE_ICON("node-segment-curve"),
                                           secondarySize );
         g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_tocurve), 0 );
+        gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
+    }
+
+    {
+        InkAction* inky = ink_action_new( "NodeArcAction",
+                                          _("Node Arc"),
+                                          _("Make selected segments arcs"),
+                                          INKSCAPE_ICON("node-segment-arc"),
+                                          secondarySize );
+        g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_toarc), 0 );
         gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
     }
 
