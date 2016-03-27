@@ -651,6 +651,10 @@ void Node::move(Geom::Point const &new_pos)
     _front.setPosition(_front.position() + delta);
     _back.setPosition(_back.position() + delta);
 
+    _arc_rx.setPosition(_arc_rx.position() + delta);
+    _arc_ry.setPosition(_arc_ry.position() + delta);
+    _arc_rotation.setPosition(_arc_rotation.position() + delta);
+
     // if the node has a smooth handle after a line segment, it should be kept colinear
     // with the segment
     _fixNeighbors(old_pos, new_pos);
@@ -691,6 +695,10 @@ void Node::transform(Geom::Affine const &m)
     setPosition(position() * m);
     _front.setPosition(_front.position() * m);
     _back.setPosition(_back.position() * m);
+
+    _arc_rx.setPosition(_arc_rx.position() * m);
+    _arc_ry.setPosition(_arc_ry.position() * m);
+    _arc_rotation.setPosition(_arc_rotation.position() * m);
 
     /* Affine transforms keep handle invariants for smooth and symmetric nodes,
      * but smooth nodes at ends of linear segments and auto nodes need special treatment */
@@ -792,7 +800,15 @@ void Node::showHandles(bool v)
     if (!_back.isDegenerate()) {
         _back.setVisible(v);
     }
-
+    if (!_arc_rx.isDegenerate()) {
+        _arc_rx.setVisible(v);
+    }
+    if (!_arc_ry.isDegenerate()) {
+        _arc_ry.setVisible(v);
+    }
+    if (!_arc_rotation.isDegenerate()) {
+        _arc_rotation.setVisible(v);
+    }
 }
 
 void Node::updateHandles()
@@ -801,6 +817,9 @@ void Node::updateHandles()
 
     _front._handleControlStyling();
     _back._handleControlStyling();
+    _arc_rx._handleControlStyling();
+    _arc_ry._handleControlStyling();
+    _arc_rotation._handleControlStyling();
 }
 
 
@@ -1493,6 +1512,7 @@ char const *Node::node_type_to_localized_string(NodeType type)
 
 bool Node::_is_line_segment(Node *first, Node *second)
 {
+    // TODO handle arc mode here
     if (!first || !second) return false;
     if (first->_next() == second)
         return first->_front.isDegenerate() && second->_back.isDegenerate();

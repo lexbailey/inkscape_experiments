@@ -319,10 +319,18 @@ void MultiPathManipulator::setSegmentType(SegmentType type)
 {
     if (_selection.empty()) return;
     invokeForAll(&PathManipulator::setSegmentType, type);
-    if (type == SEGMENT_STRAIGHT) {
-        _done(_("Straighten segments"));
-    } else {
-        _done(_("Make segments curves"));
+    switch (type){
+        case SEGMENT_STRAIGHT:
+            _done(_("Straighten segments"));
+            break;
+        case SEGMENT_CUBIC_BEZIER:
+            _done(_("Make segments curves"));
+            break;
+        case SEGMENT_ELIPTICAL_ARC:
+            _done(_("Make segments arcs"));
+            break;
+        default:
+            g_error("Unknown segment type");
     }
 }
 
