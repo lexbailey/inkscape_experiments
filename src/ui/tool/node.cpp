@@ -112,7 +112,8 @@ Handle::Handle(NodeSharedData const &data, Geom::Point const &initial_pos, Node 
                  _handle_colors, data.handle_group),
     _parent(parent),
     _handle_line(ControlManager::getManager().createControlLine(data.handle_line_group)),
-    _degenerate(true)
+    _degenerate(true),
+    _offset(Geom::Point())// Start with 0 offset
 {
     setVisible(false);
 }
@@ -184,8 +185,8 @@ void Handle::move(Geom::Point const &new_pos)
 
     if (_parent->type() == NODE_SMOOTH && Node::_is_line_segment(_parent, node_away)) {
         // restrict movement to the line joining the nodes
-        Geom::Point direction = _parent->position() - node_away->position();
-        Geom::Point delta = new_pos - _parent->position();
+        Geom::Point direction = _parent->position() + _offset - node_away->position();
+        Geom::Point delta = new_pos - _parent->position() + _offset;
         // project the relative position on the direction line
         Geom::Point new_delta = (Geom::dot(delta, direction)
             / Geom::L2sq(direction)) * direction;
@@ -212,7 +213,7 @@ void Handle::move(Geom::Point const &new_pos)
         } break;
     case NODE_SYMMETRIC:
         // for symmetric nodes, place the other handle on the opposite side
-        other->setRelativePos(-(new_pos - _parent->position()));
+        other->setRelativePos(-(new_pos - _parent->position() + _offset));
         break;
     default: break;
     }
@@ -229,10 +230,10 @@ void Handle::move(Geom::Point const &new_pos)
 void Handle::setPosition(Geom::Point const &p)
 {
     ControlPoint::setPosition(p);
-    _handle_line->setCoords(_parent->position(), position());
+    _handle_line->setCoords(_parent->position() + _offset, position());
 
     // update degeneration info and visibility
-    if (Geom::are_near(position(), _parent->position()))
+    if (Geom::are_near(position(), _parent->position() + _offset))
         _degenerate = true;
     else _degenerate = false;
 
@@ -243,6 +244,12 @@ void Handle::setPosition(Geom::Point const &p)
     }
 }
 
+/** Set the offset between the parent node and the origin */
+void Handle::setOffset(Geom::Point const &offset){
+    _offset = offset;
+    _handle_line->setCoords(_parent->position() + _offset, position());
+}
+
 void Handle::setLength(double len)
 {
     if (isDegenerate()) return;
@@ -250,9 +257,23 @@ void Handle::setLength(double len)
     setRelativePos(dir * len);
 }
 
+void Handle::setAngle(Geom::Angle a){
+    if (isDegenerate()) return;
+    setRelativePos(Geom::Point::polar(a, length()));
+}
+
+void Handle::setAngleAndLength(Geom::Angle a, double len){
+    // Degenerate case can be handled as we are setting both angle and length
+    if (isDegenerate()) {
+        setRelativePos(Geom::Point(0,1));
+    }
+    setAngle(a);
+    setLength(len);
+}
+
 void Handle::retract()
 {
-    move(_parent->position());
+    move(_parent->position() + _offset);
 }
 
 void Handle::setDirection(Geom::Point const &from, Geom::Point const &to)
@@ -428,6 +449,7 @@ void Handle::dragged(Geom::Point &new_pos, GdkEventMotion *event)
         new_pos=_last_drag_origin();
     }
     move(new_pos); // needed for correct update, even though it's redundant
+    _parent->updateArcHandleConstriants(this);
     _pm().update();
 }
 
@@ -587,7 +609,9 @@ Node::Node(NodeSharedData const &data, Geom::Point const &initial_pos) :
     _back(data, initial_pos, this),
     _arc_rx(data, initial_pos, this),
     _arc_ry(data, initial_pos, this),
-    _arc_rotation(data, initial_pos, this),
+    _arc_large(true),
+    _arc_sweep(false),
+    _arc(),
     _type(NODE_CUSP),
     _handles_shown(false)
 {
@@ -625,6 +649,68 @@ Node *Node::_prev()
     }
 }
 
+/** Update the _arc variable and correct the arc handle offsets */
+void Node::updateArc(){
+    /*
+    Node *nextNode = _next();
+    if (nextNode &&
+        !_arc_rx.isDegenerate() && !_arc_ry.isDegenerate()){
+        Geom::Coord rx = _arc_rx.length();
+        Geom::Coord ry = _arc_ry.length();
+        _arc.set(position(), rx, ry, rot, _arc_large, _arc_sweep, nextNode->position());
+        Geom::Point arcCenterOffset = _arc.center() - position();
+        _arc_rx.setOffset(arcCenterOffset);
+        _arc_ry.setOffset(arcCenterOffset);
+    }
+    */
+}
+
+/** Update constrained arc handles given a new constraint.
+    This is used to keep the arc radius handles at right angles
+    @param constraint Pointer to the handle that was forced to a new position
+        if the constraint is anything other than _arc_rx or _arc_ry then it is ignored */
+void Node::updateArcHandleConstriants(Handle *constraint)
+{
+    Handle *updateTarget = NULL;
+    Geom::Angle rotation = 0.0;
+    // Check which handle moved and set the update target and rotation
+    if      (constraint == &_arc_rx){ updateTarget = &_arc_ry; rotation = Geom::rad_from_deg( 90.0); }
+    else if (constraint == &_arc_ry){ updateTarget = &_arc_rx; rotation = Geom::rad_from_deg(-90.0); }
+    else return;
+    // Calculate the new position and move the constrained handle (updateTarget)
+    Geom::Angle newAngle = constraint->angle() + rotation;
+    Geom::Coord newLength = updateTarget->length();
+    Geom::Point newPos = Geom::Point::polar(newAngle, newLength);
+    updateTarget->setRelativePos(newPos);
+}
+
+/** Move the arc handles so that their origin is half way along the line between the nodes */
+void Node::moveArcHandles(Geom::Point lineBetweenNodes, double lenX, double lenY, Geom::Angle rotX, Geom::Angle rotY)
+{
+    // Calculate the mid point between the two nodes, put the origin of the handles there.
+    // This usually changes the length and angle of the handle lines
+    Geom::Point midPointOffset = lineBetweenNodes / 2.0;
+    _arc_rx.setOffset(midPointOffset);
+    _arc_ry.setOffset(midPointOffset);
+
+    _arc_rx.setPosition(position());
+    _arc_ry.setPosition(position());
+
+    // Apply the stored angle and length
+    _arc_rx.setAngleAndLength(rotX, lenX);
+    _arc_ry.setAngleAndLength(rotY, lenY);
+
+}
+
+/** Retract this node's handles for controling arcs */
+void Node::retractArcHandles()
+{
+    _arc_rx.setOffset(Geom::Point());
+    _arc_ry.setOffset(Geom::Point());
+    _arc_rx.retract();
+    _arc_ry.retract();
+}
+
 void Node::move(Geom::Point const &new_pos)
 {
     // move handles when the node moves.
@@ -646,14 +732,43 @@ void Node::move(Geom::Point const &new_pos)
         nextNodeWeight = _pm()._bsplineHandlePosition(nextNode->back());
     }
 
+    // Save the lengths and angles of the two arc handles to apply again after the node is moved.
+    double lenX, lenY;
+    Geom::Angle rotX, rotY;
+    lenX = _arc_rx.length(); lenY = _arc_ry.length();
+    rotX = _arc_rx.angle();  rotY = _arc_ry.angle();
+
     setPosition(new_pos);
 
+    // _front and _back are translated with the node to which they belong.
+    // This means that if they were degenrate then they are still degenerate.
     _front.setPosition(_front.position() + delta);
     _back.setPosition(_back.position() + delta);
 
-    _arc_rx.setPosition(_arc_rx.position() + delta);
-    _arc_ry.setPosition(_arc_ry.position() + delta);
-    _arc_rotation.setPosition(_arc_rotation.position() + delta);
+    // For arc manipulation handles, the position relative to their parent nodes
+    // may change as the node moves. For this reason, the degenerate case must be
+    // handled as a special case.
+    if (nextNode) { // Must have a next node for this to be an arc segment
+       if (_arc_rx.isDegenerate() || _arc_ry.isDegenerate()){
+           retractArcHandles();
+       }
+       else{
+            moveArcHandles(nextNode->position() - position(), lenX, lenY, rotX, rotY);
+       }
+    }
+    // If this is the end of an arc segment then the arc data for prevNode needs updating
+    if (prevNode){ // Must have a next node for this to be an arc segment
+        if (prevNode->arc_rx()->isDegenerate() || prevNode->arc_ry()->isDegenerate()){
+            prevNode->retractArcHandles();
+        }
+        else{
+            lenX = prevNode->arc_rx()->length();
+            lenY = prevNode->arc_ry()->length();
+            rotX = prevNode->arc_rx()->angle();
+            rotY = prevNode->arc_ry()->angle();
+            prevNode->moveArcHandles(n->position() - prevNode->position(), lenX, lenY, rotX, rotY);
+        }
+    }
 
     // if the node has a smooth handle after a line segment, it should be kept colinear
     // with the segment
@@ -674,7 +789,6 @@ void Node::move(Geom::Point const &new_pos)
 
 void Node::transform(Geom::Affine const &m)
 {
-
     Geom::Point old_pos = position();
 
     // save the previous nodes strength to apply it again once the node is moved 
@@ -696,9 +810,12 @@ void Node::transform(Geom::Affine const &m)
     _front.setPosition(_front.position() * m);
     _back.setPosition(_back.position() * m);
 
-    _arc_rx.setPosition(_arc_rx.position() * m);
-    _arc_ry.setPosition(_arc_ry.position() * m);
-    _arc_rotation.setPosition(_arc_rotation.position() * m);
+    if (nextNode){
+        _arc_rx.setPosition(_arc_rx.position() * m);
+        _arc_ry.setPosition(_arc_ry.position() * m);
+
+        updateArc();
+    }
 
     /* Affine transforms keep handle invariants for smooth and symmetric nodes,
      * but smooth nodes at ends of linear segments and auto nodes need special treatment */
@@ -806,9 +923,6 @@ void Node::showHandles(bool v)
     if (!_arc_ry.isDegenerate()) {
         _arc_ry.setVisible(v);
     }
-    if (!_arc_rotation.isDegenerate()) {
-        _arc_rotation.setVisible(v);
-    }
 }
 
 void Node::updateHandles()
@@ -819,7 +933,6 @@ void Node::updateHandles()
     _back._handleControlStyling();
     _arc_rx._handleControlStyling();
     _arc_ry._handleControlStyling();
-    _arc_rotation._handleControlStyling();
 }
 
 
@@ -1354,7 +1467,6 @@ void Node::dragged(Geom::Point &new_pos, GdkEventMotion *event)
     }
 
     sm.unSetup();
-
     SelectableControlPoint::dragged(new_pos, event);
 }
 
@@ -1400,7 +1512,7 @@ Node *Node::nodeToward(Handle *dir)
     if (front() == dir) {
         return _next();
     }
-    if ( (back() == dir) || (arc_rx() == dir) || (arc_ry() == dir) || (arc_rotation() == dir) ) {
+    if ( (back() == dir) || (arc_rx() == dir) || (arc_ry() == dir) ) {
         return _prev();
     }
     g_error("Node::nodeToward(): handle is not a child of this node!");
@@ -1424,7 +1536,7 @@ Node *Node::nodeAwayFrom(Handle *h)
     if (front() == h) {
         return _prev();
     }
-    if ( (back() == h) || (arc_rx() == h) || (arc_ry() == h) || (arc_rotation() == h) ) {
+    if ( (back() == h) || (arc_rx() == h) || (arc_ry() == h) ) {
         return _next();
     }
     g_error("Node::nodeAwayFrom(): handle is not a child of this node!");

@@ -179,6 +179,30 @@ static void sp_node_path_edit_toarc(void)
     }
 }
 
+static void sp_node_path_edit_arc_shallow(void)
+{
+    NodeTool *nt = get_node_tool();
+    if (nt) {
+        nt->_multipath->setArcSegmentLarge(false);
+    }
+}
+
+static void sp_node_path_edit_arc_bulge(void)
+{
+    NodeTool *nt = get_node_tool();
+    if (nt) {
+        nt->_multipath->setArcSegmentLarge(true);
+    }
+}
+
+static void sp_node_path_edit_arc_flip(void)
+{
+    NodeTool *nt = get_node_tool();
+    if (nt) {
+        nt->_multipath->toggleArcSegmentSweep();
+    }
+}
+
 static void sp_node_path_edit_cusp(void)
 {
     NodeTool *nt = get_node_tool();
@@ -490,6 +514,36 @@ void sp_node_toolbox_prep(SPDesktop *desktop, GtkActionGroup* mainActions, GObje
                                           INKSCAPE_ICON("node-type-auto-smooth"),
                                           secondarySize );
         g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_auto), 0 );
+        gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
+    }
+
+    {
+        InkAction* inky = ink_action_new( "NodeArcShallowAction",
+                                          _("Node Arc Shallow"),
+                                          _("Make selected arc segments shallow"),
+                                          INKSCAPE_ICON("node-segment-arc-shallow"),
+                                          secondarySize );
+        g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_arc_shallow), 0 );
+        gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
+    }
+
+    {
+        InkAction* inky = ink_action_new( "NodeArcBulgeAction",
+                                          _("Node Arc Bulge"),
+                                          _("Make selected arc segments bulge"),
+                                          INKSCAPE_ICON("node-segment-arc-bulge"),
+                                          secondarySize );
+        g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_arc_bulge), 0 );
+        gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
+    }
+
+    {
+        InkAction* inky = ink_action_new( "NodeArcFlipAction",
+                                          _("Node Arc Flip"),
+                                          _("Flip selected arc segments"),
+                                          INKSCAPE_ICON("node-segment-arc-flip"),
+                                          secondarySize );
+        g_signal_connect_after( G_OBJECT(inky), "activate", G_CALLBACK(sp_node_path_edit_arc_flip), 0 );
         gtk_action_group_add_action( mainActions, GTK_ACTION(inky) );
     }
 

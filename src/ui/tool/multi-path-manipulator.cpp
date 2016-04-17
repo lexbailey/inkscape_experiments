@@ -334,6 +334,25 @@ void MultiPathManipulator::setSegmentType(SegmentType type)
     }
 }
 
+void MultiPathManipulator::setArcSegmentLarge(bool large)
+{
+    if (_selection.empty()) return;
+    invokeForAll(&PathManipulator::setArcSegmentLarge, large);
+    if (large){ 
+        _done(_("Make arc segments bulge"));
+    }
+    else{
+        _done(_("Make arc segments shallow"));
+    }
+}
+
+void MultiPathManipulator::toggleArcSegmentSweep()
+{
+    if (_selection.empty()) return;
+    invokeForAll(&PathManipulator::toggleArcSegmentSweep);
+    _done(_("Flip arc segments"));
+}
+
 void MultiPathManipulator::insertNodes()
 {
     if (_selection.empty()) return;
