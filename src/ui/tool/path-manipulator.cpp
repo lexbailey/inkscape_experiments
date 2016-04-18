@@ -1266,6 +1266,8 @@ void PathManipulator::_createControlPointsFromGeometry()
                 Geom::Coord angleX = arc->rotationAngle();
                 Geom::Coord angleY = angleX + Geom::rad_from_deg(90);
                 previous_node->moveArcHandles(current_node->position() - previous_node->position(), arc->ray(Geom::X), arc->ray(Geom::Y), angleX, angleY);
+                *(previous_node->arc_large()) = arc->largeArc();
+                *(previous_node->arc_sweep()) = arc->sweep();
             }
             previous_node = current_node;
         }
