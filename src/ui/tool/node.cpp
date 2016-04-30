@@ -806,13 +806,26 @@ void Node::transform(Geom::Affine const &m)
         nextNodeWeight = _pm()._bsplineHandlePosition(nextNode->back());
     }
 
+    // Save the lengths and angles of the two arc handles to apply again after the node is moved.
+    double lenX, lenY;
+    Geom::Angle rotX, rotY;
+    lenX = _arc_rx.length(); lenY = _arc_ry.length();
+    rotX = _arc_rx.angle();  rotY = _arc_ry.angle();
+
     setPosition(position() * m);
     _front.setPosition(_front.position() * m);
     _back.setPosition(_back.position() * m);
 
+
     if (nextNode){
-        _arc_rx.setPosition(_arc_rx.position() * m);
-        _arc_ry.setPosition(_arc_ry.position() * m);
+        if (_arc_rx.isDegenerate() || _arc_ry.isDegenerate()){
+            retractArcHandles();
+        }
+        else{
+            moveArcHandles(nextNode->position() - position(), lenX, lenY, rotX, rotY);
+        }
+        //_arc_rx.setPosition(_arc_rx.position() * m);
+        //_arc_ry.setPosition(_arc_ry.position() * m);
 
         updateArc();
     }
