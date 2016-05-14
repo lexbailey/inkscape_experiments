@@ -649,26 +649,10 @@ Node *Node::_prev()
     }
 }
 
-/** Update the _arc variable and correct the arc handle offsets */
-void Node::updateArc(){
-    /*
-    Node *nextNode = _next();
-    if (nextNode &&
-        !_arc_rx.isDegenerate() && !_arc_ry.isDegenerate()){
-        Geom::Coord rx = _arc_rx.length();
-        Geom::Coord ry = _arc_ry.length();
-        _arc.set(position(), rx, ry, rot, _arc_large, _arc_sweep, nextNode->position());
-        Geom::Point arcCenterOffset = _arc.center() - position();
-        _arc_rx.setOffset(arcCenterOffset);
-        _arc_ry.setOffset(arcCenterOffset);
-    }
-    */
-}
-
 /** Update constrained arc handles given a new constraint.
     This is used to keep the arc radius handles at right angles
-    @param constraint Pointer to the handle that was forced to a new position
-        if the constraint is anything other than _arc_rx or _arc_ry then it is ignored */
+    @param constraint Pointer to the handle that was forced to a new position.
+        If the constraint is anything other than _arc_rx or _arc_ry then this function does nothing */
 void Node::updateArcHandleConstriants(Handle *constraint)
 {
     Handle *updateTarget = NULL;
@@ -757,11 +741,14 @@ void Node::move(Geom::Point const &new_pos)
        }
     }
     // If this is the end of an arc segment then the arc data for prevNode needs updating
-    if (prevNode){ // Must have a next node for this to be an arc segment
+    if (prevNode){
         if (prevNode->arc_rx()->isDegenerate() || prevNode->arc_ry()->isDegenerate()){
             prevNode->retractArcHandles();
         }
         else{
+            // In this case, the parent node for the arc handles hasn't moved,
+            // for this reason, we didn't need to save the length and rotation earlier,
+            // we can get the length and rotation now.
             lenX = prevNode->arc_rx()->length();
             lenY = prevNode->arc_ry()->length();
             rotX = prevNode->arc_rx()->angle();
@@ -824,10 +811,6 @@ void Node::transform(Geom::Affine const &m)
         else{
             moveArcHandles(nextNode->position() - position(), lenX, lenY, rotX, rotY);
         }
-        //_arc_rx.setPosition(_arc_rx.position() * m);
-        //_arc_ry.setPosition(_arc_ry.position() * m);
-
-        updateArc();
     }
 
     /* Affine transforms keep handle invariants for smooth and symmetric nodes,

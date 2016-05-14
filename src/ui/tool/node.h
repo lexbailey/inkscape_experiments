@@ -287,7 +287,6 @@ private:
     Inkscape::SnapTargetType _snapTargetType() const;
     inline PathManipulator &_pm();
     inline PathManipulator &_pm() const;
-    void updateArc();
 
     /** Determine whether two nodes are joined by a linear segment. */
     static bool _is_line_segment(Node *first, Node *second);
